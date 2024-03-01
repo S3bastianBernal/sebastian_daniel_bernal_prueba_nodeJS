@@ -5,6 +5,7 @@ class Carrito_Controller{
 
     create = async (req, res) => {
         try {
+            // se creo la instancia donde se manda la solicitud de la creacion del carrito y se les pasa los datos para su respectivi filtro
             const newCarrito = await this.carrito_model.create({ input: req.body });
             return res.status(201).json(newCarrito);
         } catch (error) {
@@ -17,13 +18,14 @@ class Carrito_Controller{
         try {
             const carritos = await this.carrito_model.getCarritos({ datos: req.body })
 
+            // se itera los datos de carritos para obtner los descuentos a traves de la tiendas
             const descuento = carritos.map((des) =>{
                 const {Tienda} = des
                 const promo = Tienda.promociones
                 return promo[0]
             })
 
-            
+            // se itera los los datos de carritos para enviar una consulta lo mas similar al ejemplo
             const test = carritos.map((carrito) => {
                 return{
                     id_producto: carrito.id_producto,
@@ -56,16 +58,21 @@ class Carrito_Controller{
     CreatePedido = async (req,res) =>{
         try {
             const direccion = await this.carrito_model.getDireccion({datos: req.body});
+
+            // se destructura los datos para la creacion del pedido
             const {userInfo,userDireccion,tiendasDistancias} = direccion
 
             const id_direccion = userInfo[0].user.users_cliente.id_direccion
 
+            // se itera para obtener solo los datos que vamos a usar
             const direccion_id = userDireccion.map(({id,distancia,direccion}) => ({
                 id,
                 distancia,
                 direccion
             }));
 
+            
+            // se itera para obtener solo los datos que vamos a usar
             const distanciaValor = tiendasDistancias.map(({id,id_tienda,valor,desde,hasta}) => ({
                 id,
                 id_tienda,
@@ -75,6 +82,7 @@ class Carrito_Controller{
             }));
 
 
+            // se itera para obtener solo las direcciones con el id relacionado
             const direccionfiltrada = direccion_id
             .filter(cion => {
                 return cion.id === id_direccion;
@@ -82,6 +90,7 @@ class Carrito_Controller{
             .map(({ id, distancia, direccion }) => ({ id, distancia, direccion }));
 
 
+            // se itera para oobtener la direccion la cual esta dentro del rango
             const valorFiltrada = distanciaValor
             .filter(val =>{
                 return direccionfiltrada[0].distancia >= val.desde && direccionfiltrada[0].distancia <= val.hasta|| val.hasta === null
@@ -89,6 +98,7 @@ class Carrito_Controller{
 
 
             const carritos = await this.carrito_model.getCarritos({ datos: req.body })
+
 
             const descuento = carritos.map((des) =>{
                 const {Tienda} = des
@@ -126,14 +136,19 @@ class Carrito_Controller{
 
             const valor_total = valores.valor_producto + valores.valor_descuento + valores.valor_envio;
 
+            // se hace la peticion para crear el pedido con los datos extraidos anteriormente
             const NewPedido = await this.carrito_model.CreatePedido({data: [req.body, valores,valor_total]})
+            
+            //se valida que el pedido se creara exitosamente
             if (!NewPedido) {
                 return res.status(400).json({
                     error: 'Error al crear el pedido'
                 });
             }
+            // se hace la peticion para crear el estado del pedido anterior con el id del mismo
             const PedidoEstado = await this.carrito_model.CreatePedidoEstado({id_pedido: NewPedido.id})
 
+            // se crea la estructura de los datos para la creacion de pedidos_productos
             const valoresPedidosProductos = {
                 val_unitario: valores.valor_producto,
                 val_unitario_promocion: valores.valor_descuento,
@@ -144,6 +159,7 @@ class Carrito_Controller{
                 id_pedido: NewPedido.id
             }
 
+            // por ultimo se hace la peticion para la creacion del dato dentro de la tabla de pedidos_productos
             const newPedidoProducto = await this.carrito_model.CreatePedidosProductos({data: valoresPedidosProductos})
             
             return res.status(201).json({
